@@ -1,0 +1,16 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="24" fill="#10b981"/>
+  <g transform="translate(32, 32)">
+    <!-- Igreja/Cruz -->
+    <path d="M64 20 L64 8 L72 8 L72 20 L84 20 L84 28 L72 28 L72 40 L64 40 L64 28 L52 28 L52 20 Z" fill="white"/>
+    <!-- Base da Igreja -->
+    <rect x="40" y="40" width="48" height="60" rx="4" fill="white"/>
+    <!-- Porta -->
+    <rect x="58" y="70" width="12" height="30" rx="6" fill="#10b981"/>
+    <!-- Janelas -->
+    <rect x="46" y="50" width="8" height="8" rx="2" fill="#10b981"/>
+    <rect x="74" y="50" width="8" height="8" rx="2" fill="#10b981"/>
+    <!-- Texto IPDA -->
+    <text x="64" y="120" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">IPDA</text>
+  </g>
+</svg>
