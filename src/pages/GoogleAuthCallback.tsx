@@ -16,22 +16,29 @@ export function GoogleAuthCallback() {
   useEffect(() => {
     const processCallback = async () => {
       const code = searchParams.get('code');
+      const state = searchParams.get('state');
       const error = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
+
+      console.log('Callback recebido:', { code: !!code, state: !!state, error });
 
       if (error) {
+        const errorMsg = errorDescription || error;
+        console.error('Erro OAuth recebido:', errorMsg);
         setStatus('error');
-        setErrorMessage('Autorização negada pelo usuário');
+        setErrorMessage(`Erro na autenticação: ${errorMsg}`);
         return;
       }
 
       if (!code) {
+        console.error('Código de autorização não encontrado na URL');
         setStatus('error');
         setErrorMessage('Código de autorização não encontrado');
         return;
       }
 
       try {
-        await handleAuthCallback(code);
+        await handleAuthCallback(code, state || undefined);
         setStatus('success');
         
         // Redirecionar após 2 segundos

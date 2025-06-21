@@ -49,13 +49,17 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   // Conectar ao Google Calendar
   const connect = useCallback(() => {
     try {
+      console.log('Iniciando conexão com Google Calendar...');
       const authUrl = googleCalendarService.generateAuthUrl();
+      console.log('Redirecionando para autenticação Google...');
       window.location.href = authUrl;
     } catch (error) {
-      console.error('Erro ao conectar:', error);
+      console.error('Erro ao gerar URL de autorização:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
       toast({
         title: 'Erro',
-        description: 'Falha ao conectar com Google Calendar',
+        description: `Erro ao iniciar conexão: ${errorMessage}`,
         variant: 'destructive'
       });
     }
@@ -76,24 +80,49 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   }, [toast]);
 
   // Lidar com callback de autenticação
-  const handleAuthCallback = useCallback(async (code: string) => {
+  const handleAuthCallback = useCallback(async (code: string, state?: string) => {
+    if (!code) {
+      toast({
+        title: 'Erro',
+        description: 'Código de autorização não recebido',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const tokens = await googleCalendarService.getTokenFromCode(code);
-      // O token já é salvo internamente pelo serviço
+      console.log('Processando callback do Google OAuth...');
+      await googleCalendarService.getTokenFromCode(code, state);
       setIsConnected(true);
-      
       toast({
         title: 'Sucesso',
         description: 'Conectado ao Google Calendar com sucesso!',
       });
+      console.log('Integração com Google Calendar estabelecida');
     } catch (error) {
-      console.error('Erro no callback de autenticação:', error);
-      toast({
-        title: 'Erro',
-        description: 'Falha na autenticação com Google Calendar',
-        variant: 'destructive'
-      });
+      console.error('Erro ao processar callback:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
+      if (errorMessage.includes('State inválido')) {
+        toast({
+          title: 'Erro',
+          description: 'Erro de segurança - tente conectar novamente',
+          variant: 'destructive'
+        });
+      } else if (errorMessage.includes('Token de acesso não recebido')) {
+        toast({
+          title: 'Erro',
+          description: 'Falha na autenticação - tente novamente',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Erro',
+          description: `Erro ao conectar: ${errorMessage}`,
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsLoading(false);
     }

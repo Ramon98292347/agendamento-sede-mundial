@@ -1,24 +1,33 @@
+import {
+  GOOGLE_OAUTH_CONFIG,
+  validateGoogleOAuthConfig,
+  generateOAuthState,
+  formatGoogleApiError
+} from '../config/googleOAuth';
+
 interface GoogleCalendarConfig {
   clientId: string;
+  clientSecret?: string;
   redirectUri: string;
 }
 
 interface TokenData {
   access_token: string;
   refresh_token?: string;
-  scope: string;
-  token_type: string;
   expires_in: number;
   expires_at: number;
+  token_type: string;
+  scope?: string;
 }
 
 interface AgendamentoData {
-  nome: string;
-  telefone: string;
-  data_agendamento: string;
-  horario_agendamento: string;
-  pastor: string;
-  observacoes?: string;
+  id?: string;
+  titulo: string;
+  descricao?: string;
+  dataInicio: Date;
+  dataFim: Date;
+  local?: string;
+  participantes?: string[];
 }
 
 interface CalendarEvent {
@@ -37,25 +46,53 @@ interface CalendarEvent {
 class GoogleCalendarService {
   private config: GoogleCalendarConfig;
   private tokenData: TokenData | null = null;
-  private readonly SCOPES = ['https://www.googleapis.com/auth/calendar'];
-  private readonly TOKEN_STORAGE_KEY = 'google_calendar_token';
+  private readonly TOKEN_STORAGE_KEY = GOOGLE_OAUTH_CONFIG.TOKEN_STORAGE_KEY;
+  private readonly SCOPES = GOOGLE_OAUTH_CONFIG.SCOPES;
   private readonly TIMEZONE = 'America/Sao_Paulo';
 
   constructor() {
-    this.config = {
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      redirectUri: import.meta.env.VITE_GOOGLE_REDIRECT_URI
-    };
+    // Validar configurações usando a função centralizada
+    const validation = validateGoogleOAuthConfig();
+    
+    if (!validation.isValid) {
+      const errorMessage = `Configuração do Google OAuth inválida:\n${validation.errors.join('\n')}`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+    
+    this.config = validation.config!;
+    
+    console.log('Google Calendar Service configurado:', {
+      clientId: this.config.clientId.substring(0, 20) + '...',
+      redirectUri: this.config.redirectUri,
+      hasClientSecret: !!this.config.clientSecret
+    });
     
     // Tentar carregar token do localStorage
-    const savedToken = localStorage.getItem(this.TOKEN_STORAGE_KEY);
-    if (savedToken) {
-      try {
-        this.tokenData = JSON.parse(savedToken);
-      } catch (error) {
-        console.error('Erro ao carregar token do localStorage:', error);
-        localStorage.removeItem(this.TOKEN_STORAGE_KEY);
+    this.loadTokenFromStorage();
+  }
+  
+  /**
+   * Carrega token do localStorage com validação
+   */
+  private loadTokenFromStorage(): void {
+    try {
+      const savedToken = localStorage.getItem(this.TOKEN_STORAGE_KEY);
+      if (savedToken) {
+        const tokenData = JSON.parse(savedToken);
+        
+        // Validar estrutura do token
+        if (tokenData.access_token && tokenData.expires_at) {
+          this.tokenData = tokenData;
+          console.log('Token carregado do localStorage');
+        } else {
+          console.warn('Token inválido encontrado, removendo...');
+          localStorage.removeItem(this.TOKEN_STORAGE_KEY);
+        }
       }
+    } catch (error) {
+      console.error('Erro ao carregar token do localStorage:', error);
+      localStorage.removeItem(this.TOKEN_STORAGE_KEY);
     }
   }
 
@@ -63,34 +100,71 @@ class GoogleCalendarService {
    * Gera a URL de autorização para o Google OAuth
    */
   public generateAuthUrl(): string {
-    const state = this.generateRandomString(16);
-    localStorage.setItem('google_auth_state', state);
+    const state = generateOAuthState(16);
+    localStorage.setItem(GOOGLE_OAUTH_CONFIG.STATE_STORAGE_KEY, state);
 
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
-      response_type: 'code',
+      response_type: GOOGLE_OAUTH_CONFIG.RESPONSE_TYPE,
       scope: this.SCOPES.join(' '),
-      access_type: 'offline',
+      access_type: GOOGLE_OAUTH_CONFIG.ACCESS_TYPE,
       state,
-      prompt: 'consent'
+      prompt: GOOGLE_OAUTH_CONFIG.PROMPT,
+      include_granted_scopes: GOOGLE_OAUTH_CONFIG.INCLUDE_GRANTED_SCOPES
     });
 
-    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    const authUrl = `${GOOGLE_OAUTH_CONFIG.OAUTH_URL}?${params.toString()}`;
+    
+    console.log('URL de autorização gerada:', {
+      clientId: this.config.clientId.substring(0, 20) + '...',
+      redirectUri: this.config.redirectUri,
+      scopes: this.SCOPES,
+      state
+    });
+    
+    return authUrl;
   }
 
   /**
+   * Valida o state do OAuth para prevenir ataques CSRF
+   */
+  public validateState(receivedState: string): boolean {
+    const savedState = localStorage.getItem(GOOGLE_OAUTH_CONFIG.STATE_STORAGE_KEY);
+    localStorage.removeItem(GOOGLE_OAUTH_CONFIG.STATE_STORAGE_KEY); // Limpar após uso
+    
+    if (!savedState || savedState !== receivedState) {
+      console.error('State mismatch - possível ataque CSRF');
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
    * Troca o código de autorização por tokens de acesso e atualização
    */
-  public async getTokenFromCode(code: string): Promise<TokenData> {
+  public async getTokenFromCode(code: string, state?: string): Promise<TokenData> {
+    // Validar state se fornecido
+    if (state && !this.validateState(state)) {
+      throw new Error('State inválido - possível ataque CSRF');
+    }
+    
+    console.log('Trocando código por token...');
+    
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       code,
       grant_type: 'authorization_code'
     });
+    
+    // Adicionar client_secret se disponível (para aplicações server-side)
+    if (this.config.clientSecret) {
+      params.append('client_secret', this.config.clientSecret);
+    }
 
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const response = await fetch(GOOGLE_OAUTH_CONFIG.TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -99,27 +173,63 @@ class GoogleCalendarService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Erro ao obter token: ${errorData.error_description || errorData.error || 'Erro desconhecido'}`);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = await response.text();
+      }
+      
+      console.error('Erro na resposta do token:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      
+      const errorMessage = formatGoogleApiError(errorData);
+      throw new Error(`Erro ao obter token: ${errorMessage}`);
     }
 
-    const tokenData = await response.json();
+    const data = await response.json();
     
-    // Adicionar expires_at baseado no expires_in
-    tokenData.expires_at = Date.now() + (tokenData.expires_in * 1000);
+    console.log('Token recebido com sucesso:', {
+      hasAccessToken: !!data.access_token,
+      hasRefreshToken: !!data.refresh_token,
+      expiresIn: data.expires_in,
+      scope: data.scope
+    });
     
-    // Salvar token
+    if (!data.access_token) {
+      throw new Error('Token de acesso não recebido');
+    }
+    
+    const tokenData: TokenData = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+      expires_at: Date.now() + (data.expires_in * 1000),
+      token_type: data.token_type || 'Bearer',
+      scope: data.scope
+    };
+
     this.setToken(tokenData);
-    
     return tokenData;
   }
 
   /**
-   * Define o token e salva no localStorage
+   * Salva o token no localStorage
    */
-  public setToken(tokenData: TokenData): void {
+  public saveToken(tokenData: TokenData): void {
     this.tokenData = tokenData;
     localStorage.setItem(this.TOKEN_STORAGE_KEY, JSON.stringify(tokenData));
+    console.log('Token salvo no localStorage');
+  }
+  
+  /**
+   * Define o token (alias para saveToken)
+   */
+  public setToken(tokenData: TokenData): void {
+    this.saveToken(tokenData);
   }
 
   /**
@@ -148,35 +258,31 @@ class GoogleCalendarService {
     return Date.now() > expiryWithBuffer;
   }
 
-  /**
-   * Gera uma string aleatória para o state do OAuth
-   */
-  private generateRandomString(length: number): string {
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    const values = new Uint8Array(length);
-    window.crypto.getRandomValues(values);
-    for (let i = 0; i < length; i++) {
-      result += charset[values[i] % charset.length];
-    }
-    return result;
-  }
+
 
   /**
    * Renova o token de acesso usando o refresh token
    */
-  public async refreshToken(): Promise<TokenData> {
-    if (!this.tokenData || !this.tokenData.refresh_token) {
-      throw new Error('Refresh token não disponível');
+  private async refreshToken(): Promise<void> {
+    if (!this.tokenData?.refresh_token) {
+      console.error('Tentativa de renovar token sem refresh_token');
+      throw new Error('Refresh token não disponível - reautenticação necessária');
     }
+    
+    console.log('Renovando token de acesso...');
 
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       refresh_token: this.tokenData.refresh_token,
       grant_type: 'refresh_token'
     });
+    
+    // Adicionar client_secret se disponível
+    if (this.config.clientSecret) {
+      params.append('client_secret', this.config.clientSecret);
+    }
 
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const response = await fetch(GOOGLE_OAUTH_CONFIG.TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -185,37 +291,71 @@ class GoogleCalendarService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Erro ao renovar token: ${errorData.error_description || errorData.error || 'Erro desconhecido'}`);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = await response.text();
+      }
+      
+      console.error('Erro ao renovar token:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      
+      // Se o refresh token for inválido, limpar dados
+      if (response.status === 400) {
+        this.removeToken();
+        throw new Error('Refresh token inválido - reautenticação necessária');
+      }
+      
+      const errorMessage = formatGoogleApiError(errorData);
+      throw new Error(`Erro ao renovar token: ${errorMessage}`);
     }
 
-    const newTokenData = await response.json();
+    const data = await response.json();
     
-    // Manter o refresh_token, pois a resposta pode não incluí-lo
-    newTokenData.refresh_token = this.tokenData.refresh_token;
+    console.log('Token renovado com sucesso');
     
-    // Adicionar expires_at baseado no expires_in
-    newTokenData.expires_at = Date.now() + (newTokenData.expires_in * 1000);
-    
-    // Salvar novo token
-    this.setToken(newTokenData);
-    
-    return newTokenData;
+    // Atualizar token mantendo o refresh_token se não for fornecido um novo
+    const updatedToken: TokenData = {
+      ...this.tokenData,
+      access_token: data.access_token,
+      expires_in: data.expires_in,
+      expires_at: Date.now() + (data.expires_in * 1000),
+      token_type: data.token_type || this.tokenData.token_type,
+      refresh_token: data.refresh_token || this.tokenData.refresh_token
+    };
+
+    this.saveToken(updatedToken);
   }
 
   /**
-   * Garante que temos um token válido antes de fazer chamadas à API
+   * Garante que temos um token válido, renovando se necessário
    */
   private async ensureValidToken(): Promise<string> {
-    if (!this.isAuthenticated()) {
-      if (this.tokenData && this.tokenData.refresh_token) {
-        await this.refreshToken();
-      } else {
-        throw new Error('Não autenticado no Google Calendar');
-      }
+    if (!this.tokenData) {
+      throw new Error('Usuário não autenticado - faça login primeiro');
     }
     
-    return this.tokenData!.access_token;
+    if (!this.tokenData.access_token) {
+      throw new Error('Token de acesso não encontrado');
+    }
+
+    // Verificar se o token está próximo do vencimento
+    const refreshMargin = Date.now() + GOOGLE_OAUTH_CONFIG.TOKEN_REFRESH_MARGIN;
+    if (this.tokenData.expires_at && this.tokenData.expires_at < refreshMargin) {
+      console.log('Token próximo do vencimento, renovando...');
+      try {
+        await this.refreshToken();
+      } catch (error) {
+        console.error('Erro ao renovar token:', error);
+        throw new Error('Falha na renovação do token - reautenticação necessária');
+      }
+    }
+
+    return this.tokenData.access_token;
   }
 
   /**
@@ -259,7 +399,7 @@ class GoogleCalendarService {
   public async createEvent(event: CalendarEvent): Promise<string> {
     const accessToken = await this.ensureValidToken();
     
-    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    const response = await fetch(`${GOOGLE_OAUTH_CONFIG.CALENDAR_API_URL}/calendars/primary/events`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -283,7 +423,7 @@ class GoogleCalendarService {
   public async updateEvent(eventId: string, event: CalendarEvent): Promise<void> {
     const accessToken = await this.ensureValidToken();
     
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+    const response = await fetch(`${GOOGLE_OAUTH_CONFIG.CALENDAR_API_URL}/calendars/primary/events/${eventId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -344,7 +484,7 @@ class GoogleCalendarService {
       params.append('timeMax', timeMax.toISOString());
     }
     
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+    const response = await fetch(`${GOOGLE_OAUTH_CONFIG.CALENDAR_API_URL}/calendars/primary/events?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`
