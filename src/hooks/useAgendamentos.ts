@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { webhookService } from '@/services/webhookService';
 
 export interface Agendamento {
   id: string;
@@ -68,6 +69,9 @@ export const useAgendamentos = () => {
       
       setAgendamentos(prev => [data, ...prev]);
       
+      // Enviar webhook para criação
+      await webhookService.sendToWebhook(data, 'create');
+      
       // Alerta maior e mais visível
       toast.success('🎉 Agendamento criado com sucesso!', {
         duration: 5000,
@@ -102,6 +106,13 @@ export const useAgendamentos = () => {
       if (error) throw error;
       
       setAgendamentos(prev => prev.map(a => a.id === id ? data : a));
+      
+      // Determinar o tipo de ação para o webhook
+      const action = updates.status ? 'status_change' : 'update';
+      
+      // Enviar webhook para atualização
+      await webhookService.sendToWebhook(data, action);
+      
       return data;
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error);
@@ -112,6 +123,9 @@ export const useAgendamentos = () => {
 
   const deleteAgendamento = async (id: string) => {
     try {
+      // Buscar o agendamento antes de excluir para enviar no webhook
+      const agendamentoToDelete = agendamentos.find(a => a.id === id);
+      
       const { error } = await supabase
         .from('agendamentos')
         .delete()
@@ -120,6 +134,12 @@ export const useAgendamentos = () => {
       if (error) throw error;
       
       setAgendamentos(prev => prev.filter(a => a.id !== id));
+      
+      // Enviar webhook para exclusão
+      if (agendamentoToDelete) {
+        await webhookService.sendToWebhook(agendamentoToDelete, 'delete');
+      }
+      
       toast.success('Agendamento excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
