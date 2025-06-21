@@ -51,7 +51,10 @@ const PastorDashboard = () => {
   }, [agendamentos, pastorLogado, filtroData, filtroStatus, busca]);
 
   const handleSaveAnotacoes = async (id: string, anotacoes: string) => {
-    await updateAgendamento(id, { anotacoes_pastor: anotacoes });
+    await updateAgendamento(id, { 
+      anotacoes_pastor: anotacoes,
+      status: 'atendido'
+    });
   };
 
   const handleStatusChange = async (id: string, novoStatus: string) => {

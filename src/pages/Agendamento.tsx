@@ -140,47 +140,18 @@ const Agendamento = () => {
   // Obter datas disponíveis únicas
   const datasDisponiveis = [...new Set(escalas.map(escala => escala.data_disponivel))];
 
-  // Função para gerar horários com intervalo personalizado e excluir horários de almoço
-  const generateTimeSlots = (startTime: string, endTime: string, intervalMinutes: number = 30, intervaloAlmoco?: string | { inicio: string; fim: string }) => {
+  // Função para gerar horários de 30 em 30 minutos
+  const generateTimeSlots = (startTime: string, endTime: string) => {
     const slots = [];
     const start = new Date(`2000-01-01T${startTime}`);
     const end = new Date(`2000-01-01T${endTime}`);
     
-    // Processar intervalo de almoço se existir
-    let almocoInicio: Date | null = null;
-    let almocoFim: Date | null = null;
-    
-    if (intervaloAlmoco) {
-      let intervalo: { inicio: string; fim: string };
-      
-      if (typeof intervaloAlmoco === 'string') {
-        try {
-          intervalo = JSON.parse(intervaloAlmoco);
-        } catch (e) {
-          console.error('Erro ao processar intervalo de almoço:', e);
-          intervalo = { inicio: '12:00', fim: '13:00' };
-        }
-      } else {
-        intervalo = intervaloAlmoco as { inicio: string; fim: string };
-      }
-      
-      almocoInicio = new Date(`2000-01-01T${intervalo.inicio}`);
-      almocoFim = new Date(`2000-01-01T${intervalo.fim}`);
-    }
-    
     let current = new Date(start);
     
     while (current < end) {
-      // Verificar se o horário atual está dentro do intervalo de almoço
-      const isHorarioAlmoco = almocoInicio && almocoFim && 
-        current >= almocoInicio && current < almocoFim;
-      
-      if (!isHorarioAlmoco) {
-        const timeString = current.toTimeString().slice(0, 5);
-        slots.push(timeString);
-      }
-      
-      current.setMinutes(current.getMinutes() + intervalMinutes);
+      const timeString = current.toTimeString().slice(0, 5);
+      slots.push(timeString);
+      current.setMinutes(current.getMinutes() + 30);
     }
     
     return slots;
@@ -202,16 +173,10 @@ const Agendamento = () => {
   const horariosDisponiveis = escalas
     .filter(escala => escala.data_disponivel === formData.dataAgendamento)
     .flatMap(escala => {
-      const intervalMinutes = escala.intervalo_minutos || 30; // Usar intervalo personalizado ou padrão de 30 min
-      const timeSlots = generateTimeSlots(
-        escala.horario_inicio, 
-        escala.horario_fim, 
-        intervalMinutes, 
-        escala.intervalo_almoco
-      );
+      const timeSlots = generateTimeSlots(escala.horario_inicio, escala.horario_fim);
       const horariosLivres = timeSlots.filter(slot => !horariosJaAgendados.includes(slot));
       
-      console.log('Horários gerados para escala (intervalo:', intervalMinutes, 'min):', timeSlots);
+      console.log('Horários gerados para escala:', timeSlots);
       console.log('Horários livres após filtrar agendados:', horariosLivres);
       
       return horariosLivres.map(slot => ({
@@ -382,79 +347,79 @@ const Agendamento = () => {
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-blue-50 to-green-50 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-6 sm:mb-8 relative">
-          <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-touch">
-              <span className="text-white font-bold text-lg sm:text-2xl">IPDA</span>
+        <div className="text-center mb-8 relative">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-2xl">IPDA</span>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">Igreja Pentecostal</h1>
-              <p className="text-sm sm:text-base lg:text-lg text-gray-600">Deus é Amor</p>
+              <h1 className="text-3xl font-bold text-gray-800">Igreja Pentecostal</h1>
+              <p className="text-lg text-gray-600">Deus é Amor</p>
             </div>
           </div>
           
-          {/* Botões Admin e Pastor - Lado esquerdo */}
-          <div className="absolute top-2 sm:top-0 left-2 sm:left-0 flex space-x-1 sm:space-x-2">
+          {/* Botões Admin e Pastor - Lado a lado */}
+          <div className="absolute top-0 right-0 flex space-x-2">
             <button
               onClick={() => setShowAdminLogin(true)}
-              className="bg-red-500 hover:bg-red-600 active:bg-red-700 text-white px-2 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-normal flex items-center space-x-1 text-xs sm:text-sm md:text-base shadow-touch min-h-touch min-w-touch active:scale-95"
+              className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs sm:text-sm md:text-base shadow-lg"
             >
               <span className="text-sm sm:text-base">🏠</span>
-              <span className="hidden xs:inline">Admin</span>
+              <span>Admin</span>
             </button>
             
             <button
               onClick={() => navigate('/pastor-login')}
-              className="bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white px-2 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-all duration-normal flex items-center space-x-1 text-xs sm:text-sm md:text-base shadow-touch min-h-touch min-w-touch active:scale-95"
+              className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs sm:text-sm md:text-base shadow-lg"
             >
               <span className="text-sm sm:text-base">👨‍💼</span>
-              <span className="hidden xs:inline">Pastor</span>
+              <span>Pastor</span>
             </button>
           </div>
 
-          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-700 mb-2">📅 Agendamento de Consulta</h2>
-          <p className="text-sm sm:text-base text-gray-600">Preencha os dados abaixo para agendar uma consulta com nossos pastores</p>
+          <h2 className="text-2xl font-semibold text-gray-700 mb-2">Agendamento de Consulta</h2>
+          <p className="text-gray-600">Preencha os dados abaixo para agendar uma consulta com nossos pastores</p>
         </div>
 
         {/* Modal Admin Login - Com logo da igreja */}
         {showAdminLogin && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-white p-4 sm:p-6 rounded-lg w-full max-w-md shadow-mobile-card animate-slide-up">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-md">
               {/* Logo da Igreja */}
-              <div className="flex items-center justify-center mb-4 sm:mb-6">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mr-2 sm:mr-3 shadow-touch">
-                  <span className="text-white font-bold text-lg sm:text-xl">IPDA</span>
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mr-3">
+                  <span className="text-white font-bold text-xl">IPDA</span>
                 </div>
                 <div className="text-center">
-                  <h4 className="text-xs sm:text-sm font-bold text-gray-800">⛪ Igreja Pentecostal</h4>
+                  <h4 className="text-sm font-bold text-gray-800">Igreja Pentecostal</h4>
                   <p className="text-xs text-gray-600">Deus é Amor</p>
                 </div>
               </div>
               
-              <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-center">🔐 Acesso Administrativo</h3>
+              <h3 className="text-lg font-bold mb-4 text-center">Acesso Administrativo</h3>
               <input
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 placeholder="Digite a senha"
-                className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4"
                 onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
               />
               <div className="flex space-x-2">
                 <button
                   onClick={handleAdminLogin}
-                  className="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white py-3 sm:py-2 rounded-lg font-medium transition-all duration-normal min-h-touch active:scale-95 shadow-touch"
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg"
                 >
-                  ✅ Entrar
+                  Entrar
                 </button>
                 <button
                   onClick={() => {
                     setShowAdminLogin(false);
                     setAdminPassword('');
                   }}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white py-3 sm:py-2 rounded-lg font-medium transition-all duration-normal min-h-touch active:scale-95 shadow-touch"
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg"
                 >
-                  ❌ Cancelar
+                  Cancelar
                 </button>
               </div>
             </div>
@@ -469,15 +434,15 @@ const Agendamento = () => {
           onCancelAgendamento={handleCancelAgendamento}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulário */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-mobile-card p-4 sm:p-6 animate-slide-up">
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Dados Pessoais */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-2">
-                    👤 Nome Completo *
+                    Nome Completo *
                   </label>
                   <input
                     type="text"
@@ -485,7 +450,7 @@ const Agendamento = () => {
                     name="nome"
                     value={formData.nome}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                     placeholder="Digite seu nome completo"
                     required
                   />
@@ -493,7 +458,7 @@ const Agendamento = () => {
 
                 <div>
                   <label htmlFor="telefone" className="block text-sm font-medium text-gray-700 mb-2">
-                    📱 Telefone *
+                    Telefone *
                   </label>
                   <input
                     type="tel"
@@ -501,7 +466,7 @@ const Agendamento = () => {
                     name="telefone"
                     value={formData.telefone}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                     placeholder="(11) 99999-9999"
                     required
                   />
@@ -510,7 +475,7 @@ const Agendamento = () => {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  📧 E-mail
+                  E-mail
                 </label>
                 <input
                   type="email"
@@ -518,7 +483,7 @@ const Agendamento = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="contato@ipda.org.br"
                 />
               </div>
@@ -526,17 +491,17 @@ const Agendamento = () => {
               {/* Campos condicionais - só mostram se não tiver áudio */}
               {!audioRecorded && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="tipoAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
-                        📋 Tipo de Agendamento *
+                        Tipo de Agendamento *
                       </label>
                       <select
                         id="tipoAgendamento"
                         name="tipoAgendamento"
                         value={formData.tipoAgendamento}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         required={!audioRecorded}
                       >
                         <option value="">Selecione o tipo</option>
@@ -552,14 +517,14 @@ const Agendamento = () => {
 
                     <div>
                       <label htmlFor="pastorSelecionado" className="block text-sm font-medium text-gray-700 mb-2">
-                        👨‍💼 Selecione o Pastor *
+                        Selecione o Pastor *
                       </label>
                       <select
                         id="pastorSelecionado"
                         name="pastorSelecionado"
                         value={formData.pastorSelecionado}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch disabled:opacity-50"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         required={!audioRecorded}
                         disabled={pastoresLoading}
                       >
@@ -575,17 +540,17 @@ const Agendamento = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="dataAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
-                        📅 Data do Agendamento *
+                        Data do Agendamento *
                       </label>
                       <select
                         id="dataAgendamento"
                         name="dataAgendamento"
                         value={formData.dataAgendamento}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch disabled:opacity-50"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         disabled={!formData.pastorSelecionado || escalasLoading}
                       >
                         <option value="">
@@ -607,14 +572,14 @@ const Agendamento = () => {
 
                     <div>
                       <label htmlFor="horarioAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
-                        ⏰ Horário *
+                        Horário *
                       </label>
                       <select
                         id="horarioAgendamento"
                         name="horarioAgendamento"
                         value={formData.horarioAgendamento}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base min-h-touch shadow-touch disabled:opacity-50"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                         disabled={!formData.dataAgendamento}
                       >
                         <option value="">
@@ -635,7 +600,7 @@ const Agendamento = () => {
 
                   <div>
                     <label htmlFor="observacoes" className="block text-sm font-medium text-gray-700 mb-2">
-                      📝 Assunto *
+                      Assunto *
                     </label>
                     <textarea
                       id="observacoes"
@@ -643,7 +608,7 @@ const Agendamento = () => {
                       value={formData.observacoes}
                       onChange={handleInputChange}
                       rows={4}
-                      className="w-full px-4 py-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-normal text-base-mobile sm:text-base shadow-touch resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                       placeholder="Descreva o motivo do agendamento"
                     />
                   </div>
@@ -651,14 +616,14 @@ const Agendamento = () => {
               )}
 
               {/* Gravador de Áudio */}
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🎤 Gravação de Áudio {audioRecorded && '✅'}
+                  Gravação de Áudio {audioRecorded && '✓'}
                 </label>
                 <AudioRecorder onAudioRecorded={handleAudioRecorded} />
                 {audioRecorded && (
-                  <p className="text-sm text-green-600 mt-2 p-2 bg-green-50 rounded-lg">
-                    ✅ Áudio gravado! Agora só é necessário preencher nome e telefone.
+                  <p className="text-sm text-green-600 mt-2">
+                    ✓ Áudio gravado! Agora só é necessário preencher nome e telefone.
                   </p>
                 )}
               </div>
@@ -666,18 +631,18 @@ const Agendamento = () => {
               {/* Botão de Envio */}
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold py-4 sm:py-4 px-6 rounded-lg shadow-touch-lg hover:from-green-500 hover:to-blue-600 transform hover:scale-105 active:scale-95 transition-all duration-normal min-h-touch text-base-mobile sm:text-base"
+                className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg hover:from-green-500 hover:to-blue-600 transform hover:scale-105 transition-all duration-200"
               >
-                {audioRecorded ? '🎤 Enviar Agendamento com Áudio' : '📅 Enviar Agendamento'}
+                {audioRecorded ? 'Enviar Agendamento com Áudio' : 'Enviar Agendamento'}
               </button>
             </form>
           </div>
 
           {/* Informações Laterais - Usando as configurações do sistema */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
             {/* Informações de Contato */}
-            <div className="bg-white rounded-lg shadow-mobile-card p-4 sm:p-6 animate-slide-up">
-              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 flex items-center">
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                 <span className="text-pink-500 mr-2">📞</span>
                 Informações de Contato
               </h3>
