@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { webhookService } from '@/services/webhookService';
 
 export interface Agendamento {
   id: string;
@@ -83,14 +82,6 @@ export const useAgendamentos = () => {
         description: `Agendamento para ${agendamentoData.nome} foi registrado no sistema.`,
       });
       
-      // Enviar webhook após sucesso
-      try {
-        await webhookService.sendToWebhook(data, 'create');
-      } catch (webhookError) {
-        console.error('Erro ao enviar webhook:', webhookError);
-        // Não interrompe o fluxo principal
-      }
-      
       return data;
     } catch (error) {
       console.error('Erro ao adicionar agendamento:', error);
@@ -111,24 +102,6 @@ export const useAgendamentos = () => {
       if (error) throw error;
       
       setAgendamentos(prev => prev.map(a => a.id === id ? data : a));
-      
-      // Enviar webhook após sucesso
-      try {
-        // Determinar tipo de ação baseado nas atualizações
-        let action: 'update' | 'status_change' | 'atendimento' = 'update';
-        
-        if (updates.status) {
-          action = 'status_change';
-        } else if (updates.anotacoes_pastor) {
-          action = 'atendimento';
-        }
-        
-        await webhookService.sendToWebhook(data, action);
-      } catch (webhookError) {
-        console.error('Erro ao enviar webhook:', webhookError);
-        // Não interrompe o fluxo principal
-      }
-      
       return data;
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error);
@@ -139,9 +112,6 @@ export const useAgendamentos = () => {
 
   const deleteAgendamento = async (id: string) => {
     try {
-      // Buscar dados do agendamento antes de deletar para o webhook
-      const agendamento = agendamentos.find(a => a.id === id);
-      
       const { error } = await supabase
         .from('agendamentos')
         .delete()
@@ -151,16 +121,6 @@ export const useAgendamentos = () => {
       
       setAgendamentos(prev => prev.filter(a => a.id !== id));
       toast.success('Agendamento excluído com sucesso!');
-      
-      // Enviar webhook após sucesso
-      if (agendamento) {
-        try {
-          await webhookService.sendToWebhook(agendamento, 'delete');
-        } catch (webhookError) {
-          console.error('Erro ao enviar webhook:', webhookError);
-          // Não interrompe o fluxo principal
-        }
-      }
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
       toast.error('Erro ao excluir agendamento');
@@ -172,11 +132,11 @@ export const useAgendamentos = () => {
     try {
       console.log('Buscando agendamentos para:', { nome, telefone });
       
-      // Buscar por nome ou telefone que iniciem com os termos digitados
+      // Buscar por nome ou telefone que contenham os termos digitados
       const { data: existingAgendamentos, error } = await supabase
         .from('agendamentos')
         .select('*')
-        .or(`nome.ilike.${nome}%,telefone.ilike.${telefone}%`)
+        .or(`nome.ilike.%${nome}%,telefone.ilike.%${telefone}%`)
         .neq('status', 'cancelado')
         .order('created_at', { ascending: false });
 

@@ -63,7 +63,7 @@ const AgendamentoFilter: React.FC<AgendamentoFilterProps> = ({
             id="nome-filter"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            placeholder="Digite as primeiras letras do nome"
+            placeholder="Digite pelo menos 2 caracteres"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
@@ -77,7 +77,7 @@ const AgendamentoFilter: React.FC<AgendamentoFilterProps> = ({
             id="telefone-filter"
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
-            placeholder="Digite os primeiros números do telefone"
+            placeholder="Digite pelo menos 3 números"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
