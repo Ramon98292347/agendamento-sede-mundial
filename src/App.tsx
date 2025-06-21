@@ -89,7 +89,7 @@ const AnalyticsInitializer = () => {
 // Componente de layout global
 const GlobalLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <div className="min-h-screen transition-colors duration-200">
       {/* Barra de status global */}
       <div className="fixed top-0 right-0 z-40 p-4 flex items-center space-x-2">
         <ConnectionStatus />

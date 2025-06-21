@@ -135,7 +135,7 @@ const Agendamento = () => {
     // Debounce para evitar muitas chamadas
     const timer = setTimeout(checkForExistingAgendamento, 1000);
     return () => clearTimeout(timer);
-  }, [formData.nome, formData.telefone, formData.dataAgendamento, formData.pastorSelecionado]);
+  }, [formData.nome, formData.telefone, formData.dataAgendamento]);
 
   // Obter datas disponíveis únicas
   const datasDisponiveis = [...new Set(escalas.map(escala => escala.data_disponivel))];
@@ -247,38 +247,8 @@ const Agendamento = () => {
     }
 
     try {
-      // Preparar dados para o webhook
-      const webhookData: any = {
-        nome: formData.nome,
-        telefone: formData.telefone,
-        email: formData.email || null,
-        tipo_agendamento: formData.tipoAgendamento || null,
-        pastor_selecionado: formData.pastorSelecionado || null,
-        data_agendamento: formData.dataAgendamento || null,
-        horario_agendamento: formData.horarioAgendamento || null,
-        observacoes: formData.observacoes || null,
-        timestamp: new Date().toISOString(),
-        origem: 'webapp'
-      };
-
-      if (audioBlob) {
-        const audioBase64 = await convertBlobToBase64(audioBlob);
-        webhookData.audio_base64 = audioBase64;
-      }
-
-      const response = await fetch('https://webhookn8n.rfautomatic.click/webhook/agendamento', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(webhookData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao enviar dados para o webhook');
-      }
-
-      await addAgendamento({
+      // Preparar dados do agendamento
+      const agendamentoData = {
         nome: formData.nome,
         telefone: formData.telefone,
         email: formData.email || undefined,
@@ -288,6 +258,10 @@ const Agendamento = () => {
         horario_agendamento: formData.horarioAgendamento || undefined,
         observacoes: formData.observacoes || undefined,
         audio_url: audioUrl || undefined,
+      };
+
+      await addAgendamento({
+        ...agendamentoData,
         status: 'pendente',
         origem: 'webapp'
       });

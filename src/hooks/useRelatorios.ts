@@ -29,7 +29,7 @@ export const useRelatorios = () => {
       setLoading(true);
       console.log('🔍 Iniciando busca de agendamentos...');
       
-      // Buscar dados da tabela historico_agendamentos// Buscar dados do histórico
+      // Buscar dados do histórico
     console.log('🔍 Buscando dados do histórico...');
     const { data: historicoData, error: historicoError } = await supabase
       .from('agendamentos_historico')
