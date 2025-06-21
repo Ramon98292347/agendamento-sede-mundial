@@ -49,17 +49,13 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   // Conectar ao Google Calendar
   const connect = useCallback(() => {
     try {
-      console.log('Iniciando conexão com Google Calendar...');
       const authUrl = googleCalendarService.generateAuthUrl();
-      console.log('Redirecionando para autenticação Google...');
       window.location.href = authUrl;
     } catch (error) {
-      console.error('Erro ao gerar URL de autorização:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      
+      console.error('Erro ao conectar:', error);
       toast({
         title: 'Erro',
-        description: `Erro ao iniciar conexão: ${errorMessage}`,
+        description: 'Falha ao conectar com Google Calendar',
         variant: 'destructive'
       });
     }
@@ -80,49 +76,24 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
   }, [toast]);
 
   // Lidar com callback de autenticação
-  const handleAuthCallback = useCallback(async (code: string, state?: string) => {
-    if (!code) {
-      toast({
-        title: 'Erro',
-        description: 'Código de autorização não recebido',
-        variant: 'destructive'
-      });
-      return;
-    }
-
+  const handleAuthCallback = useCallback(async (code: string) => {
     setIsLoading(true);
     try {
-      console.log('Processando callback do Google OAuth...');
-      await googleCalendarService.getTokenFromCode(code, state);
+      const tokens = await googleCalendarService.getTokenFromCode(code);
+      // O token já é salvo internamente pelo serviço
       setIsConnected(true);
+      
       toast({
         title: 'Sucesso',
         description: 'Conectado ao Google Calendar com sucesso!',
       });
-      console.log('Integração com Google Calendar estabelecida');
     } catch (error) {
-      console.error('Erro ao processar callback:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      
-      if (errorMessage.includes('State inválido')) {
-        toast({
-          title: 'Erro',
-          description: 'Erro de segurança - tente conectar novamente',
-          variant: 'destructive'
-        });
-      } else if (errorMessage.includes('Token de acesso não recebido')) {
-        toast({
-          title: 'Erro',
-          description: 'Falha na autenticação - tente novamente',
-          variant: 'destructive'
-        });
-      } else {
-        toast({
-          title: 'Erro',
-          description: `Erro ao conectar: ${errorMessage}`,
-          variant: 'destructive'
-        });
-      }
+      console.error('Erro no callback de autenticação:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha na autenticação com Google Calendar',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -177,11 +148,7 @@ export function useGoogleCalendar(): UseGoogleCalendarReturn {
     }
 
     try {
-      // Converter para o formato de evento do Calendar
-      const calendarEvent = googleCalendarService.convertToCalendarEvent(agendamento);
-      
-      // Atualizar o evento
-      await googleCalendarService.updateEvent(eventId, calendarEvent);
+      await googleCalendarService.updateEvent(eventId, agendamento);
       
       toast({
         title: 'Sucesso',

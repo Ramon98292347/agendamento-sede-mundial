@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useGoogleCalendar } from './useGoogleCalendar';
-import { AgendamentoData } from '../services/googleCalendarService';
 
 export interface Agendamento {
   id: string;
@@ -18,7 +16,6 @@ export interface Agendamento {
   status: string;
   origem: string;
   anotacoes_pastor?: string;
-  google_event_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -36,28 +33,11 @@ export interface AgendamentoInsert {
   status?: string;
   origem?: string;
   anotacoes_pastor?: string;
-  google_event_id?: string;
 }
 
 export const useAgendamentos = () => {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
-  const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, isConnected } = useGoogleCalendar();
-
-  // Converter agendamento para formato do Google Calendar
-  const convertToGoogleCalendarData = (agendamento: Agendamento | AgendamentoInsert): AgendamentoData => {
-    return {
-      id: 'id' in agendamento ? agendamento.id : '',
-      nome: agendamento.nome,
-      telefone: agendamento.telefone,
-      email: agendamento.email,
-      data_agendamento: agendamento.data_agendamento || '',
-      horario: agendamento.horario_agendamento || '',
-      assunto: agendamento.observacoes || 'Consulta agendada',
-      pastor: agendamento.pastor_selecionado || 'Pastor não definido',
-      tipo_agendamento: agendamento.tipo_agendamento || 'Consulta'
-    };
-  };
 
   const fetchAgendamentos = async () => {
     try {
@@ -78,27 +58,9 @@ export const useAgendamentos = () => {
 
   const addAgendamento = async (agendamentoData: AgendamentoInsert) => {
     try {
-      // Criar evento no Google Calendar se conectado
-      let googleEventId = null;
-      if (isConnected && agendamentoData.data_agendamento && agendamentoData.horario_agendamento) {
-        try {
-          const calendarData = convertToGoogleCalendarData(agendamentoData);
-          googleEventId = await createCalendarEvent(calendarData);
-        } catch (calendarError) {
-          console.warn('Erro ao criar evento no Google Calendar:', calendarError);
-          // Continua mesmo se falhar no Google Calendar
-        }
-      }
-
-      // Adicionar google_event_id aos dados se foi criado
-      const dataToInsert = {
-        ...agendamentoData,
-        google_event_id: googleEventId
-      };
-
       const { data, error } = await supabase
         .from('agendamentos')
-        .insert(dataToInsert)
+        .insert(agendamentoData)
         .select()
         .single();
 
@@ -107,11 +69,7 @@ export const useAgendamentos = () => {
       setAgendamentos(prev => [data, ...prev]);
       
       // Alerta maior e mais visível
-      const successMessage = googleEventId 
-        ? '🎉 Agendamento criado e sincronizado com Google Calendar!'
-        : '🎉 Agendamento criado com sucesso!';
-      
-      toast.success(successMessage, {
+      toast.success('🎉 Agendamento criado com sucesso!', {
         duration: 5000,
         style: {
           backgroundColor: '#10B981',
@@ -134,9 +92,6 @@ export const useAgendamentos = () => {
 
   const updateAgendamento = async (id: string, updates: Partial<Agendamento>) => {
     try {
-      // Buscar agendamento atual para obter google_event_id
-      const currentAgendamento = agendamentos.find(a => a.id === id);
-      
       const { data, error } = await supabase
         .from('agendamentos')
         .update(updates)
@@ -145,17 +100,6 @@ export const useAgendamentos = () => {
         .single();
 
       if (error) throw error;
-      
-      // Atualizar evento no Google Calendar se conectado e existe event_id
-      if (isConnected && currentAgendamento?.google_event_id) {
-        try {
-          const calendarData = convertToGoogleCalendarData(data);
-          await updateCalendarEvent(currentAgendamento.google_event_id, calendarData);
-        } catch (calendarError) {
-          console.warn('Erro ao atualizar evento no Google Calendar:', calendarError);
-          // Continua mesmo se falhar no Google Calendar
-        }
-      }
       
       setAgendamentos(prev => prev.map(a => a.id === id ? data : a));
       return data;
@@ -168,9 +112,6 @@ export const useAgendamentos = () => {
 
   const deleteAgendamento = async (id: string) => {
     try {
-      // Buscar agendamento para obter google_event_id antes de deletar
-      const agendamentoToDelete = agendamentos.find(a => a.id === id);
-      
       const { error } = await supabase
         .from('agendamentos')
         .delete()
@@ -178,23 +119,8 @@ export const useAgendamentos = () => {
 
       if (error) throw error;
       
-      // Deletar evento do Google Calendar se conectado e existe event_id
-      if (isConnected && agendamentoToDelete?.google_event_id) {
-        try {
-          await deleteCalendarEvent(agendamentoToDelete.google_event_id);
-        } catch (calendarError) {
-          console.warn('Erro ao deletar evento no Google Calendar:', calendarError);
-          // Continua mesmo se falhar no Google Calendar
-        }
-      }
-      
       setAgendamentos(prev => prev.filter(a => a.id !== id));
-      
-      const successMessage = agendamentoToDelete?.google_event_id
-        ? 'Agendamento excluído e removido do Google Calendar!'
-        : 'Agendamento excluído com sucesso!';
-      
-      toast.success(successMessage);
+      toast.success('Agendamento excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
       toast.error('Erro ao excluir agendamento');

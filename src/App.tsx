@@ -19,7 +19,6 @@ import Relatorios from "./pages/Relatorios";
 import Historico from "./pages/Historico";
 import PastorLogin from "./pages/PastorLogin";
 import PastorDashboard from "./pages/PastorDashboard";
-import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -162,7 +161,6 @@ const App = () => (
                         </ProtectedPastorRoute>
                       } 
                     />
-                    <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

@@ -4,6 +4,12 @@ import { Badge } from './ui/badge';
 import { Calendar, CheckCircle, XCircle, Settings } from 'lucide-react';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import { LoadingSpinner } from './LoadingSpinner';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Calendar, CheckCircle, XCircle, Settings } from 'lucide-react';
+import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface GoogleCalendarConfigProps {
   className?: string;

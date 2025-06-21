@@ -3,7 +3,6 @@ import Header from '../components/Header';
 import { toast } from 'sonner';
 import SystemConfigModal from '../components/SystemConfigModal';
 import MultipleDatePicker from '../components/MultipleDatePicker';
-import GoogleCalendarConfig from '../components/GoogleCalendarConfig';
 import { usePastores } from '../hooks/usePastores';
 import { useEscalas } from '../hooks/useEscalas';
 import { useConfiguracoesSystem } from '../hooks/useConfiguracoesSystem';
@@ -414,11 +413,6 @@ const Configuracoes = () => {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Configuração do Google Calendar */}
-        <div className="mt-8">
-          <GoogleCalendarConfig />
         </div>
 
         {/* Configurações do Sistema */}

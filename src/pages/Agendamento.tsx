@@ -135,7 +135,7 @@ const Agendamento = () => {
     // Debounce para evitar muitas chamadas
     const timer = setTimeout(checkForExistingAgendamento, 1000);
     return () => clearTimeout(timer);
-  }, [formData.nome, formData.telefone, formData.dataAgendamento]);
+  }, [formData.nome, formData.telefone, formData.dataAgendamento, formData.pastorSelecionado]);
 
   // Obter datas disponíveis únicas
   const datasDisponiveis = [...new Set(escalas.map(escala => escala.data_disponivel))];
@@ -359,7 +359,7 @@ const Agendamento = () => {
           </div>
           
           {/* Botões Admin e Pastor - Lado a lado */}
-          <div className="absolute top-0 right-0 flex space-x-2">
+          <div className="absolute top-0 left-0 flex space-x-2">
             <button
               onClick={() => setShowAdminLogin(true)}
               className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors flex items-center space-x-1 text-xs sm:text-sm md:text-base shadow-lg"
