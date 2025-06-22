@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -35,26 +35,11 @@ const Agendamento = () => {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Estados para o filtro de duplicatas
   const [duplicateResults, setDuplicateResults] = useState<any[]>([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (isMenuOpen && !target.closest('.menu-container')) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMenuOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -151,7 +136,7 @@ const Agendamento = () => {
     // Debounce para evitar muitas chamadas
     const timer = setTimeout(checkForExistingAgendamento, 1000);
     return () => clearTimeout(timer);
-  }, [formData.nome, formData.telefone, formData.dataAgendamento, formData.pastorSelecionado]);
+  }, [formData.nome, formData.telefone, formData.dataAgendamento]);
 
   // Obter datas disponíveis únicas
   const datasDisponiveis = [...new Set(escalas.map(escala => escala.data_disponivel))];
@@ -201,18 +186,19 @@ const Agendamento = () => {
       }));
     });
 
-  const handleAudioRecorded = (audioUrl: string, audioBlob: Blob) => {
-    setAudioUrl(audioUrl);
-    setAudioBlob(audioBlob);
+  const handleAudioRecorded = (url: string, blob: Blob) => {
+    setAudioUrl(url);
+    setAudioBlob(blob);
     setAudioRecorded(true);
+    toast.success('Áudio gravado com sucesso!');
   };
 
   const convertBlobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onloadend = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]); // Remove o prefixo 'data:audio/webm;base64,'
+        resolve(result.split(',')[1]); // Remove o prefixo "data:audio/wav;base64,"
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
@@ -360,51 +346,50 @@ const Agendamento = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-blue-50 to-green-50 p-4">
-      {/* Menu Suspenso Lateral */}
-      <div className="fixed top-4 left-4 z-50">
-        <div className="relative menu-container">
-          {/* Botão do Menu */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="bg-white hover:bg-gray-50 text-gray-700 p-3 rounded-lg shadow-lg border border-gray-200 transition-all duration-200 flex items-center justify-center"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          {/* Menu Dropdown */}
-          {isMenuOpen && (
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
-              <button
-                onClick={() => {
-                  setShowAdminLogin(true);
-                  setIsMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center space-x-3"
-              >
-                <span className="text-red-500">🏠</span>
-                <span className="text-gray-700 font-medium">Acesso Admin</span>
-              </button>
-              
-              <button
-                onClick={() => {
-                  navigate('/pastor-login');
-                  setIsMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center space-x-3"
-              >
-                <span className="text-purple-500">👨‍💼</span>
-                <span className="text-gray-700 font-medium">Acesso Pastor</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="max-w-4xl mx-auto">
+        {/* Dropdown de Acesso Fixo */}
+        <div className="fixed top-4 left-4 z-50">
+          <div className="relative">
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg"
+            >
+              <span>⚙️</span>
+              <span>Acesso</span>
+              <span className={`transform transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            
+            {showDropdown && (
+              <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[150px] overflow-hidden z-50">
+                <button
+                  onClick={() => {
+                    setShowAdminLogin(true);
+                    setShowDropdown(false);
+                  }}
+                  className="w-full px-4 py-3 text-left hover:bg-red-50 transition-colors flex items-center space-x-2 border-b border-gray-100"
+                >
+                  <span className="text-red-500">🏠</span>
+                  <span className="text-gray-700 font-medium">Admin</span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    navigate('/pastor-login');
+                    setShowDropdown(false);
+                  }}
+                  className="w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors flex items-center space-x-2"
+                >
+                  <span className="text-purple-500">👨‍💼</span>
+                  <span className="text-gray-700 font-medium">Pastor</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative pt-16">
+          {/* Logo da Igreja - Abaixo dos Botões */}
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-2xl">IPDA</span>
@@ -540,21 +525,22 @@ const Agendamento = () => {
                         value={formData.tipoAgendamento}
                         onChange={handleInputChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                        required
+                        required={!audioRecorded}
                       >
                         <option value="">Selecione o tipo</option>
                         <option value="aconselhamento">Aconselhamento</option>
                         <option value="oracao">Oração</option>
+                        <option value="estudoBiblico">Estudo Bíblico</option>
+                        <option value="visitaPastoral">Visita Pastoral</option>
                         <option value="casamento">Casamento</option>
                         <option value="batismo">Batismo</option>
-                        <option value="apresentacao">Apresentação de Criança</option>
                         <option value="outro">Outro</option>
                       </select>
                     </div>
 
                     <div>
                       <label htmlFor="pastorSelecionado" className="block text-sm font-medium text-gray-700 mb-2">
-                        Pastor *
+                        Selecione o Pastor *
                       </label>
                       <select
                         id="pastorSelecionado"
@@ -562,10 +548,12 @@ const Agendamento = () => {
                         value={formData.pastorSelecionado}
                         onChange={handleInputChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                        required
+                        required={!audioRecorded}
                         disabled={pastoresLoading}
                       >
-                        <option value="">Selecione o pastor</option>
+                        <option value="">
+                          {pastoresLoading ? 'Carregando pastores...' : 'Escolha um pastor'}
+                        </option>
                         {pastores.map((pastor) => (
                           <option key={pastor.id} value={pastor.nome}>
                             {pastor.nome}
@@ -575,55 +563,63 @@ const Agendamento = () => {
                     </div>
                   </div>
 
-                  {/* Data e Horário - só aparecem se pastor for selecionado */}
-                  {formData.pastorSelecionado && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="dataAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
-                          Data do Agendamento *
-                        </label>
-                        <select
-                          id="dataAgendamento"
-                          name="dataAgendamento"
-                          value={formData.dataAgendamento}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          required
-                          disabled={escalasLoading}
-                        >
-                          <option value="">Selecione a data</option>
-                          {datasDisponiveis.map((data) => (
-                            <option key={data} value={data}>
-                              {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {formData.dataAgendamento && (
-                        <div>
-                          <label htmlFor="horarioAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
-                            Horário *
-                          </label>
-                          <select
-                            id="horarioAgendamento"
-                            name="horarioAgendamento"
-                            value={formData.horarioAgendamento}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                            required
-                          >
-                            <option value="">Selecione o horário</option>
-                            {horariosDisponiveis.map((item, index) => (
-                              <option key={index} value={item.horario}>
-                                {item.horario}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="dataAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
+                        Data do Agendamento *
+                      </label>
+                      <select
+                        id="dataAgendamento"
+                        name="dataAgendamento"
+                        value={formData.dataAgendamento}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        disabled={!formData.pastorSelecionado || escalasLoading}
+                      >
+                        <option value="">
+                          {!formData.pastorSelecionado 
+                            ? 'Selecione um pastor primeiro' 
+                            : escalasLoading 
+                            ? 'Carregando datas...' 
+                            : datasDisponiveis.length === 0 
+                            ? 'Nenhuma data disponível' 
+                            : 'Selecione uma data'}
+                        </option>
+                        {datasDisponiveis.map((data) => (
+                          <option key={data} value={data}>
+                            {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  )}
+
+                    <div>
+                      <label htmlFor="horarioAgendamento" className="block text-sm font-medium text-gray-700 mb-2">
+                        Horário *
+                      </label>
+                      <select
+                        id="horarioAgendamento"
+                        name="horarioAgendamento"
+                        value={formData.horarioAgendamento}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        disabled={!formData.dataAgendamento}
+                      >
+                        <option value="">
+                          {!formData.dataAgendamento 
+                            ? 'Selecione uma data primeiro' 
+                            : horariosDisponiveis.length === 0 
+                            ? 'Nenhum horário disponível' 
+                            : 'Selecione um horário'}
+                        </option>
+                        {horariosDisponiveis.map((horario, index) => (
+                          <option key={index} value={horario.horario}>
+                            {horario.horario}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
                   <div>
                     <label htmlFor="observacoes" className="block text-sm font-medium text-gray-700 mb-2">
