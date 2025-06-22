@@ -28,7 +28,8 @@ const Configuracoes = () => {
 
   const [novoPastor, setNovoPastor] = useState({
     nome: '',
-    senha: ''
+    senha: '',
+    telefone: ''
   });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
@@ -99,8 +100,8 @@ const Configuracoes = () => {
     }
 
     try {
-      await addPastor(novoPastor.nome.trim(), novoPastor.senha.trim());
-      setNovoPastor({ nome: '', senha: '' });
+      await addPastor(novoPastor.nome.trim(), novoPastor.senha.trim(), novoPastor.telefone.trim() || undefined);
+      setNovoPastor({ nome: '', senha: '', telefone: '' });
     } catch (error) {
       // Erro já tratado no hook
     }
@@ -170,6 +171,21 @@ const Configuracoes = () => {
               </div>
               
               <div>
+                <label htmlFor="telefonePastor" className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone do Pastor
+                </label>
+                <input
+                  type="tel"
+                  id="telefonePastor"
+                  name="telefone"
+                  value={novoPastor.telefone}
+                  onChange={handlePastorInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  placeholder="Ex: (11) 99999-9999"
+                />
+              </div>
+              
+              <div>
                 <label htmlFor="senhaPastor" className="block text-sm font-medium text-gray-700 mb-2">
                   Senha do Pastor *
                 </label>
@@ -199,11 +215,16 @@ const Configuracoes = () => {
                 <p className="text-gray-500 text-sm">Nenhum pastor cadastrado</p>
               ) : (
                 pastores.map((pastor) => (
-                  <div key={pastor.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                    <span className="text-sm text-gray-700">{pastor.nome}</span>
+                  <div key={pastor.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                    <div>
+                      <span className="text-sm text-gray-700 font-medium">{pastor.nome}</span>
+                      {pastor.telefone && (
+                        <p className="text-xs text-gray-500">📞 {pastor.telefone}</p>
+                      )}
+                    </div>
                     <button
                       onClick={() => deletePastor(pastor.id)}
-                      className="text-red-500 hover:text-red-700 text-sm"
+                      className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
                     >
                       Remover
                     </button>

@@ -7,6 +7,7 @@ export interface Pastor {
   id: string;
   nome: string;
   senha: string;
+  telefone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -32,11 +33,11 @@ export const usePastores = () => {
     }
   };
 
-  const addPastor = async (nome: string, senha: string) => {
+  const addPastor = async (nome: string, senha: string, telefone?: string) => {
     try {
       const { data, error } = await supabase
         .from('pastores')
-        .insert([{ nome, senha }])
+        .insert([{ nome, senha, telefone }])
         .select()
         .single();
 
